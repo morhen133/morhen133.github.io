@@ -3,6 +3,8 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from dateutil import parser as date_parser
 from typing import List, Dict, Optional, Tuple, Any
+import requests
+from bs4 import BeautifulSoup
 
 
 UX_FEEDS: List[Tuple[str, str, str]] = [
@@ -163,6 +165,12 @@ def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 10) -> List
 			seen_ids.add(normalized["id"])
 			items.append(normalized)
 
+	# Ensure the newest UPROCK Practice article is included exactly once
+	practice = _fetch_uprock_practice_latest()
+	if practice and practice["id"] not in seen_ids:
+		items.append(practice)
+		seen_ids.add(practice["id"]) 
+
 	source_priority = {name: idx for idx, (name, _, __) in enumerate(UX_FEEDS)}
 
 	def sort_key(item: Dict):
@@ -226,3 +234,44 @@ def format_news_digest(items: List[Dict]) -> str:
 		lines.append(f"{idx}. <a href=\"{link}\">{title}</a> — <i>{source}</i>{meta}")
 
 	return "\n".join(lines)
+
+
+UPROCK_PRACTICE_URL = "https://uprock.webflow.io/tags/practice"
+
+
+def _fetch_uprock_practice_latest() -> Optional[Dict]:
+	try:
+		resp = requests.get(UPROCK_PRACTICE_URL, timeout=10)
+		resp.raise_for_status()
+		html = resp.text
+		soup = BeautifulSoup(html, "html.parser")
+		# Heuristic: assume articles are links inside elements with attribute role="listitem" or similar
+		candidates = []
+		for a in soup.find_all("a", href=True):
+			text = (a.get_text(strip=True) or "").strip()
+			href = a["href"]
+			if not text or not href:
+				continue
+			if href.startswith("/"):
+				link = "https://uprock.webflow.io" + href
+			else:
+				link = href
+			# Very loose filter to avoid nav/footer
+			if len(text) > 20 and "uprock" in link:
+				candidates.append((text, link))
+		if not candidates:
+			return None
+		title, link = candidates[0]
+		stable_id = hashlib.sha1(f"UPROCK Practice|{title}|{link}".encode("utf-8")).hexdigest()
+		return {
+			"id": stable_id,
+			"source": "UPROCK Practice",
+			"title": title,
+			"link": link,
+			"published_at": datetime.now(timezone.utc),
+			"views": None,
+			"comments": None,
+			"lang": "ru",
+		}
+	except Exception:
+		return None
