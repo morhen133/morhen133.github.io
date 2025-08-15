@@ -67,7 +67,7 @@ def _normalize_item(source: str, entry: dict) -> Optional[Dict]:
     }
 
 
-def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 5) -> List[Dict]:
+def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 10) -> List[Dict]:
     """
     Fetch recent UX design articles from curated RSS feeds.
 
