@@ -97,7 +97,7 @@ async def on_get_now_button(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def _send_shortlist(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
     since = datetime.now(timezone.utc) - timedelta(days=7)
-    items = fetch_ux_news(since)
+    items = fetch_ux_news(since, limit=5)
     text = format_news_digest(items)
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Get shortlist now", callback_data="get_now")]]
@@ -117,7 +117,7 @@ async def weekly_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     since = datetime.now(timezone.utc) - timedelta(days=7)
-    items = fetch_ux_news(since)
+    items = fetch_ux_news(since, limit=5)
     text = format_news_digest(items)
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("Get shortlist now", callback_data="get_now")]]

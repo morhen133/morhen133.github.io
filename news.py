@@ -8,9 +8,14 @@ from typing import List, Dict, Optional, Tuple
 UX_FEEDS: List[Tuple[str, str]] = [
     ("Nielsen Norman Group", "https://www.nngroup.com/feed/rss/"),
     ("Smashing Magazine – UX", "https://www.smashingmagazine.com/category/ux-design/feed/"),
-    ("Sidebar.io", "https://sidebar.io/feed"),
+    ("Smashing Magazine – Design", "https://www.smashingmagazine.com/category/design/feed/"),
     ("UX Collective", "https://uxdesign.cc/feed"),
     ("UX Planet", "https://uxplanet.org/feed"),
+    ("UX Booth", "https://www.uxbooth.com/feed/"),
+    ("Sidebar.io", "https://sidebar.io/feed"),
+    ("Muzli by InVision", "https://medium.muz.li/feed"),
+    ("Interaction Design Foundation", "https://www.interaction-design.org/literature/rss"),
+    ("Codrops", "https://tympanus.net/codrops/feed/"),
     ("A List Apart – UX", "https://alistapart.com/topics/ux/feed/"),
 ]
 
@@ -62,7 +67,7 @@ def _normalize_item(source: str, entry: dict) -> Optional[Dict]:
     }
 
 
-def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 10) -> List[Dict]:
+def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 5) -> List[Dict]:
     """
     Fetch recent UX design articles from curated RSS feeds.
 
@@ -114,7 +119,7 @@ def format_news_digest(items: List[Dict]) -> str:
     if not items:
         return "No fresh UX design highlights found for the last week."
 
-    lines = ["<b>Top UX design highlights from the last 7 days</b>"]
+    lines = ["<b>Top UX and UI design highlights from the last 7 days</b>"]
     for idx, item in enumerate(items, start=1):
         title = item.get("title", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         link = item.get("link", "#")
