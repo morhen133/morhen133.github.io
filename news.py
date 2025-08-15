@@ -5,25 +5,25 @@ from dateutil import parser as date_parser
 from typing import List, Dict, Optional, Tuple, Any
 
 
-UX_FEEDS: List[Tuple[str, str]] = [
-    ("Nielsen Norman Group", "https://www.nngroup.com/feed/rss/"),
-    ("Smashing Magazine – UX", "https://www.smashingmagazine.com/category/ux-design/feed/"),
-    ("Smashing Magazine – Design", "https://www.smashingmagazine.com/category/design/feed/"),
-    ("UX Collective", "https://uxdesign.cc/feed"),
-    ("UX Planet", "https://uxplanet.org/feed"),
-    ("UX Booth", "https://www.uxbooth.com/feed/"),
-    ("Sidebar.io", "https://sidebar.io/feed"),
-    ("Muzli by InVision", "https://medium.muz.li/feed"),
-    ("Interaction Design Foundation", "https://www.interaction-design.org/literature/rss"),
-    ("Codrops", "https://tympanus.net/codrops/feed/"),
-    ("A List Apart – UX", "https://alistapart.com/topics/ux/feed/"),
-    # Added per request
-    ("Baymard Institute", "https://baymard.com/blog/feed"),
-    ("UPROCK", "https://uprock.pro/feed"),
-    ("VC.ru – Design", "https://vc.ru/design/rss"),
-    ("Habr – UX", "https://habr.com/ru/hub/ux/rss/") ,
-    ("Habr – Design", "https://habr.com/ru/hub/design/rss/"),
-    ("UX Journal (RU)", "https://ux-journal.ru/feed/"),
+UX_FEEDS: List[Tuple[str, str, str]] = [
+	("Nielsen Norman Group", "https://www.nngroup.com/feed/rss/", "en"),
+	("Smashing Magazine – UX", "https://www.smashingmagazine.com/category/ux-design/feed/", "en"),
+	("Smashing Magazine – Design", "https://www.smashingmagazine.com/category/design/feed/", "en"),
+	("UX Collective", "https://uxdesign.cc/feed", "en"),
+	("UX Planet", "https://uxplanet.org/feed", "en"),
+	("UX Booth", "https://www.uxbooth.com/feed/", "en"),
+	("Sidebar.io", "https://sidebar.io/feed", "en"),
+	("Muzli by InVision", "https://medium.muz.li/feed", "en"),
+	("Interaction Design Foundation", "https://www.interaction-design.org/literature/rss", "en"),
+	("Codrops", "https://tympanus.net/codrops/feed/", "en"),
+	("A List Apart – UX", "https://alistapart.com/topics/ux/feed/", "en"),
+	("Baymard Institute", "https://baymard.com/blog/feed", "en"),
+	# Russian sources
+	("UPROCK", "https://uprock.pro/feed", "ru"),
+	("VC.ru – Design", "https://vc.ru/design/rss", "ru"),
+	("Habr – UX", "https://habr.com/ru/hub/ux/rss/", "ru"),
+	("Habr – Design", "https://habr.com/ru/hub/design/rss/", "ru"),
+	("UX Journal (RU)", "https://ux-journal.ru/feed/", "ru"),
 ]
 
 
@@ -105,74 +105,89 @@ def _extract_engagement(entry: dict) -> Dict[str, Optional[int]]:
     return {"views": views, "comments": comments}
 
 
-def _normalize_item(source: str, entry: dict) -> Optional[Dict]:
-    link = entry.get("link") or entry.get("id")
-    title = (entry.get("title") or "").strip()
-    if not link or not title:
-        return None
+def _normalize_item(source: str, entry: dict, lang: str) -> Optional[Dict]:
+	link = entry.get("link") or entry.get("id")
+	title = (entry.get("title") or "").strip()
+	if not link or not title:
+		return None
 
-    published_at = _parse_entry_datetime(entry)
-    engagement = _extract_engagement(entry)
+	published_at = _parse_entry_datetime(entry)
+	engagement = _extract_engagement(entry)
 
-    stable_id_base = f"{source}|{title}|{link}"
-    stable_id = hashlib.sha1(stable_id_base.encode("utf-8")).hexdigest()
+	stable_id_base = f"{source}|{title}|{link}"
+	stable_id = hashlib.sha1(stable_id_base.encode("utf-8")).hexdigest()
 
-    return {
-        "id": stable_id,
-        "source": source,
-        "title": title,
-        "link": link,
-        "published_at": published_at,
-        "views": engagement.get("views"),
-        "comments": engagement.get("comments"),
-    }
+	return {
+		"id": stable_id,
+		"source": source,
+		"title": title,
+		"link": link,
+		"published_at": published_at,
+		"views": engagement.get("views"),
+		"comments": engagement.get("comments"),
+		"lang": lang,
+	}
 
 
 def fetch_ux_news(since_utc: Optional[datetime] = None, limit: int = 10) -> List[Dict]:
-    """
-    Fetch recent UX/UI design articles from curated RSS feeds.
+	"""
+	Fetch recent UX/UI design articles from curated RSS feeds.
 
-    - since_utc: only include items published on/after this UTC datetime. Defaults to 7 days ago.
-    - limit: number of items to return after ranking.
-    """
-    if since_utc is None:
-        since_utc = datetime.now(timezone.utc) - timedelta(days=7)
+	- since_utc: only include items published on/after this UTC datetime. Defaults to 7 days ago.
+	- limit: number of items to return after ranking.
+	"""
+	if since_utc is None:
+		since_utc = datetime.now(timezone.utc) - timedelta(days=7)
 
-    items: List[Dict] = []
-    seen_ids = set()
+	items: List[Dict] = []
+	seen_ids = set()
 
-    for source, url in UX_FEEDS:
-        try:
-            feed = feedparser.parse(url)
-        except Exception:
-            continue
+	for source, url, lang in UX_FEEDS:
+		try:
+			feed = feedparser.parse(url)
+		except Exception:
+			continue
 
-        for entry in feed.get("entries", []):
-            normalized = _normalize_item(source, entry)
-            if not normalized:
-                continue
+		for entry in feed.get("entries", []):
+			normalized = _normalize_item(source, entry, lang)
+			if not normalized:
+				continue
 
-            published_at = normalized.get("published_at")
-            if published_at is not None and published_at < since_utc:
-                continue
+			published_at = normalized.get("published_at")
+			if published_at is not None and published_at < since_utc:
+				continue
 
-            if normalized["id"] in seen_ids:
-                continue
+			if normalized["id"] in seen_ids:
+				continue
 
-            seen_ids.add(normalized["id"])
-            items.append(normalized)
+			seen_ids.add(normalized["id"])
+			items.append(normalized)
 
-    source_priority = {name: idx for idx, (name, _) in enumerate(UX_FEEDS)}
+	source_priority = {name: idx for idx, (name, _, __) in enumerate(UX_FEEDS)}
 
-    def sort_key(item: Dict):
-        published_at = item.get("published_at") or datetime(1970, 1, 1, tzinfo=timezone.utc)
-        source_rank = source_priority.get(item.get("source"), 999)
-        views_rank = item.get("views") or 0
-        return (views_rank, published_at, -source_rank)
+	def sort_key(item: Dict):
+		published_at = item.get("published_at") or datetime(1970, 1, 1, tzinfo=timezone.utc)
+		source_rank = source_priority.get(item.get("source"), 999)
+		views_rank = item.get("views") or 0
+		return (views_rank, published_at, -source_rank)
 
-    items.sort(key=sort_key, reverse=True)
+	# Split by language and sort independently
+	en_items = [i for i in items if i.get("lang") == "en"]
+	ru_items = [i for i in items if i.get("lang") == "ru"]
+	en_sorted = sorted(en_items, key=sort_key, reverse=True)
+	ru_sorted = sorted(ru_items, key=sort_key, reverse=True)
 
-    return items[:limit]
+	quota = max(1, limit // 2)
+	selected_en = en_sorted[:quota]
+	selected_ru = ru_sorted[:quota]
+	combined = selected_en + selected_ru
+
+	if len(combined) < limit:
+		remaining_pool = en_sorted[quota:] + ru_sorted[quota:]
+		remaining_sorted = sorted(remaining_pool, key=sort_key, reverse=True)
+		combined.extend(remaining_sorted[: max(0, limit - len(combined))])
+
+	return combined[:limit]
 
 
 def _html_escape(text: str) -> str:
@@ -186,38 +201,28 @@ def _truncate(text: str, max_len: int) -> str:
 
 
 def format_news_digest(items: List[Dict]) -> str:
-    """Format the shortlist as a monospace table using HTML <pre>."""
-    if not items:
-        return "No fresh UX/UI design highlights found for the last week."
+	"""Format the shortlist as a clean list with links; show views if available and tag language."""
+	if not items:
+		return "No fresh UX/UI design highlights found for the last week."
 
-    # Column widths
-    col_idx = 2
-    col_title = 54
-    col_source = 16
-    col_views = 6
+	lines = [
+		"<b>Top UX and UI design highlights from the last 7 days</b>",
+		"<i>5 English + 5 Russian</i>",
+	]
+	for idx, item in enumerate(items, start=1):
+		title = _html_escape(_truncate(item.get("title", ""), 180))
+		link = item.get("link", "#")
+		source = _html_escape(item.get("source", ""))
+		lang = item.get("lang")
+		views = item.get("views")
 
-    header = f"{'#'.ljust(col_idx)} {'Title'.ljust(col_title)} {'Source'.ljust(col_source)} {'Views'.rjust(col_views)}"
-    sep = f"{'-'.ljust(col_idx, '-') } {'-'.ljust(col_title, '-') } {'-'.ljust(col_source, '-') } {'-'.rjust(col_views, '-') }"
+		meta_parts = []
+		if isinstance(views, int):
+			meta_parts.append(f"{views} views")
+		if lang in ("en", "ru"):
+			meta_parts.append(lang.upper())
+		meta = f" ({' · '.join(meta_parts)})" if meta_parts else ""
 
-    lines = ["<b>Top UX and UI design highlights from the last 7 days</b>", "<pre>", _html_escape(header), _html_escape(sep)]
+		lines.append(f"{idx}. <a href=\"{link}\">{title}</a> — <i>{source}</i>{meta}")
 
-    for idx, item in enumerate(items, start=1):
-        raw_title = item.get("title", "")
-        title = _truncate(raw_title, col_title)
-        source = item.get("source", "")
-        views = item.get("views")
-        views_text = str(views) if isinstance(views, int) else "-"
-
-        row = f"{str(idx).ljust(col_idx)} {_truncate(title, col_title).ljust(col_title)} {_truncate(source, col_source).ljust(col_source)} {views_text.rjust(col_views)}"
-        lines.append(_html_escape(row))
-
-    lines.append("</pre>")
-
-    # Add a compact list with clickable links below the table
-    for idx, item in enumerate(items, start=1):
-        title = _html_escape(_truncate(item.get("title", ""), 96))
-        link = item.get("link", "#")
-        source = _html_escape(item.get("source", ""))
-        lines.append(f"{idx}. <a href=\"{link}\">{title}</a> — <i>{source}</i>")
-
-    return "\n".join(lines)
+	return "\n".join(lines)
